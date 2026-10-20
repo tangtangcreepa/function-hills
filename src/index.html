@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>函数丘陵</title>
+  <link rel="stylesheet" href="./ui/style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <h1>函数丘陵</h1>
+          <p class="sub">三维函数世界</p>
+          <p id="app-version" class="ver"></p>
+        </div>
+        <button id="sidebar-toggle" class="sidebar-toggle" title="收起/展开侧边栏">«</button>
+      </div>
+      <div id="sidebar-body">
+
+      <section id="editor-panel" class="panel hidden">
+        <div class="panel-head">
+          <h2 id="editor-title">生成函数</h2>
+          <button id="editor-close" class="btn-close" title="关闭">×</button>
+        </div>
+        <label class="row">类型
+          <select id="editor-type">
+            <option value="explicit">显式 z=f(x,y)</option>
+            <option value="implicit">隐式 f(x,y,z)=0</option>
+            <option value="parametric">参数方程 (u,v)</option>
+          </select>
+        </label>
+        <div class="row expr-row">
+          <span class="row-label">表达式</span>
+          <div class="expr-wrap">
+            <pre class="expr-backdrop" aria-hidden="true"></pre>
+            <textarea id="editor-expr" class="expr-input" rows="2" spellcheck="false">z = sin(x) + cos(y)</textarea>
+            <div class="expr-autocomplete hidden"></div>
+          </div>
+          <span id="editor-error" class="editor-error-badge hidden"></span>
+        </div>
+        <label class="row">预设
+          <select id="editor-preset"><option value="">— 选择预设 —</option></select>
+        </label>
+        <input id="editor-preset-search" type="text" class="editor-search" placeholder="搜索预设（名称 / 说明 / 表达式）…" />
+        <p id="editor-preset-preview" class="hint hidden"></p>
+        <div id="editor-param-defs"></div>
+        <div id="editor-uv-range" class="hidden">
+          <h3>参数范围 (u / v)</h3>
+          <div class="uv-grid">
+            <label>u 起 <input type="number" id="editor-u-min" step="0.1" value="0" /></label>
+            <label>u 止 <input type="number" id="editor-u-max" step="0.1" value="6.2832" /></label>
+            <label>v 起 <input type="number" id="editor-v-min" step="0.1" value="0" /></label>
+            <label>v 止 <input type="number" id="editor-v-max" step="0.1" value="6.2832" /></label>
+          </div>
+        </div>
+        <h3>原点偏移（世界坐标平移）</h3>
+        <div class="vec-row">
+          <label>X <input type="number" id="editor-origin-x" step="0.5" value="0" /></label>
+          <label>Y(竖直) <input type="number" id="editor-origin-y" step="0.5" value="0" /></label>
+          <label>Z <input type="number" id="editor-origin-z" step="0.5" value="0" /></label>
+        </div>
+        <h3>图像范围</h3>
+        <label class="row" title="勾选则随全局视距一起变化；取消则用下面各轴独立边界"><input type="checkbox" id="editor-range-follow" checked /> 跟随全局视距</label>
+        <div id="editor-range-fields" class="vec-row hidden">
+          <label>X 半宽 <input type="number" id="editor-range-x" step="0.5" value="10" /></label>
+          <label>Y 半宽 <input type="number" id="editor-range-y" step="0.5" value="10" /></label>
+          <label id="editor-range-z-label">Z 半高 <input type="number" id="editor-range-z" step="0.5" value="30" /></label>
+        </div>
+        <p id="editor-params" class="hint hidden"></p>
+        <button id="editor-add" class="btn btn-primary">添加</button>
+        <h3>历史记录</h3>
+        <div class="history-toolbar">
+          <input id="editor-history-search" type="text" class="editor-search" placeholder="搜索历史…" />
+          <button id="editor-history-clear" class="btn history-clear">清空</button>
+        </div>
+        <ul id="editor-history" class="history"></ul>
+      </section>
+
+      <button id="btn-add" class="btn btn-primary">添加函数</button>
+      <button id="btn-fncodex" class="btn">🧮 函数图鉴</button>
+      <button id="btn-mode" class="btn">切换到探索模式</button>
+      <button id="btn-play" class="btn">🎮 玩法 · 关卡模式</button>
+      <button id="btn-settings" class="btn">⚙️ 设置</button>
+      <p id="mode-hint" class="hint">当前：编辑模式（自由飞行）</p>
+
+      <section id="play-panel" class="panel hidden">
+        <h2>🎮 玩法 · 关卡模式</h2>
+        <p id="play-level-name" class="hint"></p>
+        <p id="play-level-desc" class="hint"></p>
+        <p id="play-level-status" class="hint">未开始</p>
+        <ul id="play-level-list" class="fn-list"></ul>
+        <button id="play-start" class="btn btn-primary">开始关卡</button>
+        <button id="play-exit" class="btn hidden">退出关卡</button>
+        <button id="play-codex" class="btn">常数图鉴</button>
+        <button id="play-achievements" class="btn">🏆 成就</button>
+      </section>
+
+      <section id="level-fns-panel" class="panel hidden">
+        <h2>🎚️ 可调函数</h2>
+        <p class="hint">选中一个函数，在下方「参数调节」里拖动参数，改变赛道帮助通关。</p>
+        <ul id="level-fns-list" class="fn-list"></ul>
+      </section>
+
+      <section id="codex-panel" class="panel hidden">
+        <h2>📖 常数图鉴</h2>
+        <div id="codex-list" class="codex-list"></div>
+      </section>
+
+      <section id="achievement-panel" class="panel hidden">
+        <h2>🏆 成就</h2>
+        <div id="achievement-list" class="achievement-list"></div>
+      </section>
+
+      <section id="function-list-panel" class="panel">
+        <h2>📋 函数列表</h2>
+        <p id="function-list-empty" class="hint">还没有图像，点上方「添加函数」开始。</p>
+        <ul id="function-list" class="fn-list"></ul>
+      </section>
+
+      <section id="fncodex-panel" class="panel hidden">
+        <h2>🧮 函数图鉴</h2>
+        <p id="fncodex-status" class="hint"></p>
+        <div id="fncodex-list" class="fncodex-list"></div>
+      </section>
+
+      <section id="level-props-panel" class="panel">
+        <h2>🎯 关卡设置</h2>
+        <p class="hint">飞到目标位置后点按钮，把道具放在当前位置（供「上传为关卡」设计用）。</p>
+        <label class="row">常数符号
+          <select id="level-props-symbol"></select>
+        </label>
+        <div class="save-backup-row">
+          <button id="level-props-spawn" class="btn">放置出生点</button>
+          <button id="level-props-checkpoint" class="btn">放置存档点</button>
+        </div>
+        <div class="save-backup-row">
+          <button id="level-props-treasure" class="btn">放置常数</button>
+          <button id="level-props-end" class="btn">放置终点光柱</button>
+        </div>
+        <ul id="level-props-list" class="save-list"></ul>
+        <button id="level-props-upload" class="btn btn-primary">上传为关卡</button>
+        <p id="level-props-upload-status" class="hint"></p>
+      </section>
+
+      <section id="save-panel" class="panel">
+        <h2>💾 存档</h2>
+        <p id="save-current" class="hint">当前：无存档</p>
+        <p id="save-status" class="hint">改动会自动保存到当前存档。</p>
+        <button id="save-new" class="btn">新建存档</button>
+        <div class="save-backup-row">
+          <button id="save-export" class="btn">导出备份</button>
+          <button id="save-import" class="btn">导入备份</button>
+        </div>
+        <ul id="save-list" class="save-list"></ul>
+      </section>
+
+      <section id="env-panel" class="panel">
+        <h2>🌤️ 环境</h2>
+        <label class="row"><input type="checkbox" id="env-preview" /> 开启预览</label>
+        <label class="row">时刻 <input type="range" id="env-time" min="0" max="24" step="0.1" value="10" /> <span id="env-time-label">10:00</span></label>
+        <label class="row"><input type="checkbox" id="env-autoflow" /> 昼夜自动流转</label>
+        <label class="row">流转速度 <input type="range" id="env-autospeed" min="1" max="100" value="30" /></label>
+
+        <h3>视距</h3>
+        <label class="row" title="函数生成的水平边界（生成高度上限 = 视距 × 3）">视距（生成边界） <input type="range" id="env-viewdistance" min="5" max="50" step="1" value="10" /></label>
+        <label class="row" title="曲面网格细密程度，越大越平滑、生成越慢；会随视距自动加顶点">平滑度（网格细密度） <input type="range" id="env-smoothness" min="1" max="10" step="1" value="5" /></label>
+
+        <h3>光照</h3>
+        <label class="row" title="整体亮度，越大越亮">全局光照 <input type="range" id="env-globallight" min="0" max="200" value="75" /></label>
+        <label class="row" title="夜晚环境光亮度，越大夜晚越亮">夜晚亮度 <input type="range" id="env-nightlight" min="0" max="300" value="200" /></label>
+        <label class="row" title="月光强度，越大夜晚月光越亮（开启阴影后月光会投射影子）">月光亮度 <input type="range" id="env-moonlight" min="0" max="300" value="200" /></label>
+        <label class="row"><input type="checkbox" id="env-shadows" /> 阴影（较重）</label>
+
+        <h3>云彩</h3>
+        <label class="row"><input type="checkbox" id="env-clouds" /> 体积云（较重）</label>
+        <label class="row" title="云飘动的速度">云流速 <input type="range" id="env-cloudspeed" min="0" max="200" value="50" /></label>
+        <label class="row" title="云画质，越高越清晰越耗性能">采样 <input type="range" id="env-cloudsamples" min="8" max="40" step="1" value="14" /></label>
+        <label class="row" title="云越密，天空被云覆盖得越多（越稀疏则云越碎、空隙越大）">云密度 <input type="range" id="env-cloudcoverage" min="0" max="100" step="1" value="35" /></label>
+
+        <h3>雾</h3>
+        <label class="row">雾
+          <select id="env-fogmode">
+            <option value="none">无</option>
+            <option value="natural">自然雾</option>
+            <option value="volumetric">体积雾·光束</option>
+          </select>
+        </label>
+        <label class="row">雾浓度 <input type="range" id="env-fog" min="0" max="100" value="30" /></label>
+
+        <h3>光晕</h3>
+        <label class="row"><input type="checkbox" id="env-bloom" /> 全屏辉光（较重）</label>
+        <label class="row" title="辉光强度，越大越亮">光晕强度 <input type="range" id="env-bloomstrength" min="0" max="200" value="80" /></label>
+        <button id="env-save-default" class="btn" title="把当前所有环境设置存为默认，下次启动自动套用">保存为默认</button>
+      </section>
+
+      <section id="material-panel" class="panel">
+        <h2>🎨 图像材质 · <span id="mat-title">—</span></h2>
+        <label class="row" title="图像表面颜色">颜色 <input type="color" id="mat-color" value="#bfd4e8" /></label>
+        <label class="row" title="0=完全哑光，100=镜面金属">金属度 <input type="range" id="mat-metalness" min="0" max="100" value="10" /></label>
+        <label class="row" title="0=光滑，100=粗糙">糙度 <input type="range" id="mat-roughness" min="0" max="100" value="60" /></label>
+        <label class="row" title="自发光强度，越大越亮（0 为不发光）">荧光强度 <input type="range" id="mat-emissive" min="0" max="300" value="0" /></label>
+        <label class="row" title="自发光颜色">荧光色 <input type="color" id="mat-emissive-color" value="#ffffff" /></label>
+        <label class="row" title="玻璃质感，越大越透明（真实折射）">折射(玻璃) <input type="range" id="mat-transmission" min="0" max="100" value="0" /></label>
+        <label class="row" title="折射率，玻璃约 1.5">折射率 <input type="range" id="mat-ior" min="100" max="250" value="150" /></label>
+        <label class="row" title="整体不透明度，0=完全透明">不透明度 <input type="range" id="mat-opacity" min="0" max="100" value="100" /></label>
+        <label class="row" title="摩擦系数：0=冰面极滑，越大越抓地">摩擦 <input type="range" id="mat-friction" min="0" max="100" value="50" /></label>
+        <button id="mat-save-default" class="btn" title="把当前材质设为默认，之后新增的图像自动套用">保存为默认材质</button>
+      </section>
+
+      <section id="live-panel" class="panel">
+        <h2>🎛️ 参数调节</h2>
+        <p id="live-empty" class="hint">在表达式里引入字母变量（如 z = a·sin(x)），这里会出现对应滑杆，拖动实时改变图像。</p>
+        <div id="live-params" class="live-params"></div>
+      </section>
+
+      <section id="settings-panel" class="panel hidden">
+        <h2>⚙️ 设置</h2>
+        <label class="row" title="鼠标移动视角的灵敏度倍率，越大转得越快">鼠标灵敏度 <input type="range" id="set-sensitivity" min="0.2" max="3" step="0.05" value="1" /> <span id="set-sensitivity-label">1.00×</span></label>
+        <label class="row" title="视场角，越小视野越窄越不易晕，越大越广角">视场角 FOV <input type="range" id="set-fov" min="55" max="110" step="1" value="70" /> <span id="set-fov-label">70°</span></label>
+        <label class="row" title="视角转动时的平滑过渡，减少画面骤转引起的眩晕"><input type="checkbox" id="set-smoothing" /> 视角平滑</label>
+        <label class="row" title="走路时第一人称镜头的上下晃动强度，0=完全关闭">头部晃动 <input type="range" id="set-headbob" min="0" max="200" step="5" value="100" /> <span id="set-headbob-label">100%</span></label>
+        <label class="row" title="编辑模式自由飞行速度（与滚轮调节共享同一值）">飞行速度 <input type="range" id="set-flyspeed" min="1" max="100" step="1" value="10" /> <span id="set-flyspeed-label">10</span></label>
+        <label class="row" title="低=省电(低阴影贴图)，中=均衡，高=精细(高阴影贴图)">画质 <select id="set-quality"><option value="low">低（省电）</option><option value="medium">中（默认）</option><option value="high">高（精细）</option></select></label>
+      </section>
+
+      <section id="keybind-panel" class="panel">
+        <h2>⌨️ 按键设置</h2>
+        <p class="hint">点击「改」后再按新键即可替换，按 Esc 取消。</p>
+        <div id="keybind-list" class="keybind-list"></div>
+        <button id="keybind-reset" class="btn">恢复默认按键</button>
+      </section>
+
+      <section id="help-panel" class="panel">
+        <h2>❓ 操作说明</h2>
+        <div class="help-lines">
+          <p>移动：<b>W A S D</b></p>
+          <p>编辑：<b>空格</b> 上升 · <b>Shift</b> 下降</p>
+          <p>探索：<b>空格</b> 跳跃 · <b>Shift</b> 下蹲</p>
+          <p>视角：<b>鼠标</b> 移动 · <b>Esc</b> 释放</p>
+          <p><b>Tab</b> 切换模式 · <b>H</b> 隐藏本说明</p>
+          <p><b>F</b> 呼出侧边栏 · <b>E</b> 锁定/解锁鼠标</p>
+        </div>
+      </section>
+      </div>
+    </aside>
+    <div id="sidebar-resizer" title="拖动调整侧边栏宽度"></div>
+
+    <div id="viewport">
+      <button id="sidebar-float-toggle" class="sidebar-float-toggle hidden" title="展开侧边栏">»</button>
+      <div id="hint">点击画面即可移动视角 · Esc 释放鼠标</div>
+      <div id="status" class="hidden"></div>
+      <div id="play-hud" class="hidden">
+        <div id="play-hud-time">0:00.0</div>
+        <div id="play-hud-progress">已收集 0 / 0</div>
+        <div id="play-hud-goal">集齐所有数学常数，前往终点光柱</div>
+      </div>
+      <div id="win-overlay" class="hidden">
+        <div class="win-card">
+          <h2 id="win-title">过关！</h2>
+          <p id="win-stats"></p>
+          <div class="win-btns">
+            <button id="win-retry" class="btn">再来一次</button>
+            <button id="win-exit" class="btn">返回自由模式</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./dist/bundle.js"></script>
+</body>
+</html>

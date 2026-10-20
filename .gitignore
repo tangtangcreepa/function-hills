@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+
+# 构建产物（由 npm run build 生成）
+src/dist/
+release/
+dist/
+
+# 本地工具与编辑器状态
+.claude/
+.vs/
+.vscode/
+.idea/
+*.user
+
+# 打包含临时目录
+_release/
+*.zip
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 开发期临时测量脚本
+.measure-geo.mjs
+.measure-geo.bundle.mjs
